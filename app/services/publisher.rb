@@ -9,7 +9,11 @@ class Publisher
   def self.publish(event_key)
     # do something to create the event blah blah
     @subscribers[event_key]&.each do |subscriber|
-      subscriber.send("publisher_#{event_key}")
+      subscriber.send("#{prefix}_#{event_key}")
     end
+  end
+
+  def self.prefix
+    self.name.split("::").map(&:downcase).map { |name| name.gsub("publisher", "") }.join("_")
   end
 end
