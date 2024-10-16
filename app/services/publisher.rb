@@ -10,8 +10,11 @@ class Publisher
       @subscribers[event] << listener
     end
   end
+
   def self.publish(event_key, record:, user_id: nil, event_factory: Event)
     event = event_factory.create(key: "#{@record_name}_#{event_key}", record: record, user_id: user_id)
+    return unless event.persisted?
+
     fetch_subcribers(event_key).each do |subscriber|
       subscriber.send("#{prefix}_#{event_key}", event)
     end

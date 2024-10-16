@@ -20,7 +20,7 @@ RSpec.describe Publisher do
   let(:subscriber) { double("Subscriber") }
 
   # Results
-  let(:event) { instance_double("Event") }
+  let(:event) { instance_double("Event", persisted?: true) }
 
   before do
     allow(event_factory).to receive(:create).and_return(event)
@@ -36,21 +36,39 @@ RSpec.describe Publisher do
       expect(event_factory).to have_received(:create).with(key: "project_subscribed_event", record:, user_id: 1)
     end
 
-    context "with an event that has been subscribed to" do
-      subject(:publisher)  { Ops::ProjectPublisher }
+    context "when the event is persisted" do
+      before { allow(event).to receive(:persisted?).and_return(true) }
+      context "with an event that has been subscribed to" do
+        subject(:publisher)  { Ops::ProjectPublisher }
 
-      it "calls the method on the subscriber based on the current class and module name with the event" do
-        publisher.subscribe(subscriber, [ :subscribed_event ])
-        publish
-        expect(subscriber).to have_received(:ops_project_subscribed_event).with(event)
+        it "calls the method on the subscriber based on the current class and module name with the event" do
+          publisher.subscribe(subscriber, [ :subscribed_event ])
+          publish
+          expect(subscriber).to have_received(:ops_project_subscribed_event).with(event)
+        end
+      end
+      context "without a subscriber to the event" do
+        let(:event_key) { :unsubscribed_event }
+
+        it "does not call the method on the subscriber if the event has not been subscribed to" do
+          publish
+          expect(subscriber).not_to have_received(:ops_project_unsubscribed_event)
+        end
       end
     end
-    context "without a subscriber to the event" do
-      let(:event_key) { :unsubscribed_event }
 
-      it "does not call the method on the subscriber if the event has not been subscribed to" do
-        publish
-        expect(subscriber).not_to have_received(:ops_project_unsubscribed_event)
+    context "when the event is not persisted" do
+      before do
+        allow(event).to receive(:persisted?).and_return(false)
+      end
+      context "with a subscriber to the event" do
+        subject(:publisher)  { Ops::ProjectPublisher }
+
+        it "does not call the method on the subscriber if the event has not been persisted" do
+          publisher.subscribe(subscriber, [ :subscribed_event ])
+          publish
+          expect(subscriber).not_to have_received(:ops_project_subscribed_event)
+        end
       end
     end
   end
